@@ -365,9 +365,14 @@ async def sse_endpoint(request: Request):
 
 @app.post("/messages")
 async def messages(request: Request):
-    body = await request.body()
-    await sse.handle_post_message(request.scope, request.receive, request._send, body)
-    return Response(status_code=202)
+    try:
+        body = await request.body()
+        print(f"Received message: {body}", flush=True)
+        await sse.handle_post_message(request.scope, request.receive, request._send, body)
+        return Response(status_code=202)
+    except Exception as e:
+        print(f"Error handling message: {e}", flush=True)
+        return Response(status_code=500, content=str(e))
 
 
 @app.get("/")
