@@ -376,8 +376,52 @@ async def messages(request: Request):
 
 
 @app.get("/")
-async def root():
+async def root_get():
     return {"status": "SQLite MCP Server running", "tools": 8}
+
+
+@app.post("/")
+async def root_post(request: Request):
+    """处理 Copilot Studio 的 POST 请求（根路径）"""
+    try:
+        body = await request.json()
+        print(f"Root POST: {body}", flush=True)
+        
+        # 处理 initialize 请求
+        if body.get("method") == "initialize":
+            return {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "serverInfo": {"name": "sqlite-orders-mcp", "version": "1.0.0"},
+                    "capabilities": {"tools": {}}
+                }
+            }
+        
+        # 处理 tools/list 请求
+        if body.get("method") == "tools/list":
+            tools = await list_tools()
+            return {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "result": {"tools": [tool.dict() for tool in tools]}
+            }
+        
+        # 处理 tools/call 请求
+        if body.get("method") == "tools/call":
+            params = body.get("params", {})
+            result = await call_tool(params.get("name"), params.get("arguments", {}))
+            return {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "result": {"content": [r.dict() for r in result]}
+            }
+        
+        return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32601, "message": "Method not found"}}
+    except Exception as e:
+        print(f"Error: {e}", flush=True)
+        return {"jsonrpc": "2.0", "id": body.get("id", 0), "error": {"code": -32603, "message": str(e)}}
 
 
 @app.get("/health")
