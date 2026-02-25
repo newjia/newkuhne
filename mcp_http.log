@@ -1,0 +1,21 @@
+/Users/lijia/Desktop/Agents26/kuhne/mcp_server_http.py:353: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Started server process [81449]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+🚀 SQLite MCP Server (HTTP/SSE) 启动中...
+📁 数据库: /Users/lijia/Desktop/Agents26/kuhne/orders.db
+🌐 访问: http://localhost:8000/
+✅ MCP Server 初始化完成
+INFO:     127.0.0.1:64451 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64856 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65198 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50403 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51223 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "GET /sse HTTP/1.1" 200 OK

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: kuhne-mcp-server
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python mcp_server_http.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: PORT
+        value: 8000
