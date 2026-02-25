@@ -7,6 +7,8 @@ import json
 import sqlite3
 import os
 from typing import Any
+from datetime import datetime, timedelta
+import random
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
@@ -16,9 +18,109 @@ from mcp.server.sse import SseServerTransport
 import uvicorn
 
 # ============ 配置 ============
-# 使用环境变量或默认值
-DB_PATH = os.getenv("DB_PATH", "/Users/lijia/Desktop/Agents26/kuhne/orders.db")
+# 使用环境变量或默认值（Render 使用相对路径）
+DB_PATH = os.getenv("DB_PATH", "orders.db")
 PORT = int(os.getenv("PORT", "8000"))
+
+
+def init_database():
+    """初始化数据库（如果不存在）"""
+    if os.path.exists(DB_PATH):
+        return
+    
+    print(f"🆕 Creating database at {DB_PATH}", flush=True)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # 创建表
+    cursor.executescript("""
+        CREATE TABLE regions (
+            region_id TEXT PRIMARY KEY,
+            region_name TEXT NOT NULL,
+            city TEXT NOT NULL
+        );
+        
+        CREATE TABLE customers (
+            customer_id TEXT PRIMARY KEY,
+            customer_name TEXT NOT NULL,
+            region_id TEXT,
+            contact TEXT,
+            phone TEXT,
+            FOREIGN KEY (region_id) REFERENCES regions(region_id)
+        );
+        
+        CREATE TABLE products (
+            product_id TEXT PRIMARY KEY,
+            product_name TEXT NOT NULL,
+            category TEXT,
+            unit_price REAL NOT NULL
+        );
+        
+        CREATE TABLE orders (
+            order_id TEXT PRIMARY KEY,
+            customer_id TEXT NOT NULL,
+            product_id TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            total_amount REAL NOT NULL,
+            order_date TEXT NOT NULL,
+            status TEXT NOT NULL,
+            shipping_address TEXT,
+            notes TEXT,
+            FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+            FOREIGN KEY (product_id) REFERENCES products(product_id)
+        );
+    """)
+    
+    # 插入示例数据
+    regions = [
+        ("R001", "华东区", "杭州"),
+        ("R002", "华南区", "深圳"),
+        ("R003", "华北区", "北京"),
+        ("R004", "西南区", "成都"),
+        ("R005", "华中区", "武汉"),
+    ]
+    
+    customers = [
+        ("C001", "阿里巴巴", "R001", "联系人1", "13800000001"),
+        ("C002", "腾讯科技", "R002", "联系人2", "13800000002"),
+        ("C003", "字节跳动", "R003", "联系人3", "13800000003"),
+        ("C004", "美团", "R003", "联系人4", "13800000004"),
+        ("C005", "拼多多", "R001", "联系人5", "13800000005"),
+    ]
+    
+    products = [
+        ("P001", "企业服务器", "硬件", 50000),
+        ("P002", "云计算资源", "服务", 12000),
+        ("P003", "企业路由器", "硬件", 8500),
+        ("P004", "网络安全设备", "硬件", 15000),
+        ("P005", "企业软件许可", "软件", 25000),
+    ]
+    
+    cursor.executemany("INSERT INTO regions VALUES (?, ?, ?)", regions)
+    cursor.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?)", customers)
+    cursor.executemany("INSERT INTO products VALUES (?, ?, ?, ?)", products)
+    
+    # 生成 50 条订单
+    statuses = ["待付款", "已付款", "已发货", "已完成", "已取消"]
+    for i in range(50):
+        order_id = f"OR2025{i+1:04d}"
+        customer = random.choice(customers)
+        product = random.choice(products)
+        quantity = random.randint(1, 10)
+        total = quantity * product[3] * random.uniform(0.9, 1.1)
+        status = random.choice(statuses)
+        days_ago = random.randint(1, 365)
+        order_date = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        
+        cursor.execute("""
+            INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (order_id, customer[0], product[0], quantity, product[3], 
+              round(total, 2), order_date, status, f"{customer[2]}市XX路", f"备注{i}"))
+    
+    conn.commit()
+    conn.close()
+    print(f"✅ Database created with sample data", flush=True)
 
 
 def get_db_connection():
@@ -354,7 +456,8 @@ app = FastAPI()
 
 @app.on_event("startup")
 async def startup():
-    print("✅ MCP Server 初始化完成")
+    init_database()  # 启动时初始化数据库
+    print("✅ MCP Server 初始化完成", flush=True)
 
 
 @app.get("/sse")
