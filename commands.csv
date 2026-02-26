@@ -1,0 +1,21 @@
+Category,Example Command
+Order Stats,What is the total order amount for this month?
+Order Stats,How many completed orders are there?
+Order Stats,What is the average order amount?
+Order Stats,What is the max order amount?
+Group By,Show top 10 customers by total order amount
+Group By,Show total and average order amounts by region
+Order List,Show me the latest 5 orders
+Order List,Show all shipped orders
+Order List,Show all orders from Alibaba
+Date Filter,Show all orders in February 2026
+Date Filter,Show orders between 2026-01-01 and 2026-02-15
+Date Filter,Show completed orders in February
+Order Detail,Show details for order OR20250001
+Update Order,Change order OR20250001 status to shipped
+Update Order,Change order OR20250001 status to completed
+Update Order,Change order OR20250001 status to cancelled
+Customers,Show customer list
+Customers,Show customers in East China region
+Products,Show product list
+Products,Show hardware products
