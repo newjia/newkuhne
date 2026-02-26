@@ -9,9 +9,13 @@ import os
 from typing import Any
 from datetime import datetime, timedelta
 import random
+import subprocess
+import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 from mcp.server.sse import SseServerTransport
@@ -21,6 +25,8 @@ import uvicorn
 # 使用环境变量或默认值（Render 使用相对路径）
 DB_PATH = os.getenv("DB_PATH", "orders.db")
 PORT = int(os.getenv("PORT", "8000"))
+CHARTS_DIR = Path("static/charts")
+CHARTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def init_database():
@@ -245,6 +251,27 @@ TOOLS_DEF = [
             }
         }
     },
+    {
+        "name": "generate_customer_chart",
+        "title": "Generate Customer Order Chart",
+        "description": "Generate a visual chart (bar/pie/line) showing order statistics by customer. Returns a chart image URL that can be viewed in a browser. Use this when user asks for 'visualize', 'show chart', 'graph', or wants to see data visually.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "chart_type": {
+                    "type": "string",
+                    "enum": ["bar", "pie", "line"],
+                    "default": "bar",
+                    "description": "Type of chart: bar (comparison), pie (proportion), line (trend)"
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "Number of top customers to show"
+                }
+            }
+        }
+    },
 ]
 
 
@@ -283,6 +310,8 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             return await get_customers(arguments)
         elif name == "get_products":
             return await get_products(arguments)
+        elif name == "generate_customer_chart":
+            return await generate_customer_chart(arguments)
         else:
             return [TextContent(type="text", text=f"未知工具: {name}")]
     except Exception as e:
@@ -463,14 +492,110 @@ async def get_products(args):
     if category:
         sql += " WHERE category = ?"
         params.append(category)
-    
+
     conn = get_db_connection()
     cur = conn.execute(sql, params)
     rows = cur.fetchall()
     conn.close()
-    
+
     result = [dict_from_row(r) for r in rows]
     return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+
+
+async def generate_customer_chart(args):
+    """生成客户订单统计图表（试验性功能）"""
+    chart_type = args.get("chart_type", "bar")
+    limit = args.get("limit", 10)
+
+    # 1. 获取客户订单统计数据
+    sql = """
+        SELECT c.customer_name, SUM(o.total_amount) as total, COUNT(*) as cnt
+        FROM orders o JOIN customers c ON o.customer_id = c.customer_id
+        GROUP BY c.customer_name
+        ORDER BY total DESC
+        LIMIT ?
+    """
+
+    conn = get_db_connection()
+    cur = conn.execute(sql, [limit])
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        return [TextContent(type="text", text="No data available for chart generation.")]
+
+    # 2. 准备图表数据
+    chart_data = []
+    for row in rows:
+        chart_data.append({
+            "category": row[0],  # customer_name
+            "value": float(row[1])  # total_amount
+        })
+
+    # 3. 调用 mcp-echarts 生成图表
+    try:
+        chart_id = str(uuid.uuid4())
+        chart_file = CHARTS_DIR / f"{chart_id}.png"
+
+        # 构建 mcp-echarts 输入
+        echarts_input = {
+            "title": f"Top {limit} Customers by Order Amount",
+            "axisXTitle": "Customer",
+            "axisYTitle": "Total Amount",
+            "data": chart_data,
+            "width": 800,
+            "height": 600,
+            "theme": "default",
+            "outputType": "png"
+        }
+
+        # 调用 mcp-echarts（使用 npx）
+        tool_name = f"generate_{chart_type}_chart"
+        result = subprocess.run(
+            ["npx", "-y", "mcp-echarts"],
+            input=json.dumps({
+                "jsonrpc": "2.0",
+                "id": "1",
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": echarts_input
+                }
+            }),
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            return [TextContent(type="text", text=f"Chart generation failed: {result.stderr}")]
+
+        # 解析返回的 base64 图片
+        response = json.loads(result.stdout)
+        if "result" in response and "content" in response["result"]:
+            base64_data = response["result"]["content"][0]["text"]
+            # 移除 data:image/png;base64, 前缀
+            if "base64," in base64_data:
+                base64_data = base64_data.split("base64,")[1]
+
+            # 保存图片
+            import base64
+            chart_file.write_bytes(base64.b64decode(base64_data))
+
+            # 返回图表 URL
+            chart_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME', 'localhost:8000')}/charts/{chart_id}.png"
+            return [TextContent(
+                type="text",
+                text=f"📊 Chart generated successfully!\n\nView chart: {chart_url}\n\nData summary:\n" +
+                     "\n".join([f"- {d['category']}: ${d['value']:,.2f}" for d in chart_data[:5]])
+            )]
+        else:
+            return [TextContent(type="text", text=f"Unexpected response from mcp-echarts: {result.stdout}")]
+
+    except subprocess.TimeoutExpired:
+        return [TextContent(type="text", text="Chart generation timed out. Please try again.")]
+    except Exception as e:
+        return [TextContent(type="text", text=f"Chart generation error: {str(e)}")]
 
 
 # ============ FastAPI App ============
@@ -482,6 +607,10 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 async def startup():
     init_database()  # 启动时初始化数据库
     print("✅ MCP Server 初始化完成", flush=True)
+
+
+# 静态文件服务（用于图表）
+app.mount("/charts", StaticFiles(directory=str(CHARTS_DIR)), name="charts")
 
 
 @app.get("/sse")
@@ -504,7 +633,7 @@ async def messages(request: Request):
 
 @app.get("/")
 async def root_get():
-    return {"status": "SQLite MCP Server running", "tools": 8}
+    return {"status": "SQLite MCP Server running", "tools": 9, "features": ["data_query", "chart_generation"]}
 
 
 @app.post("/")
