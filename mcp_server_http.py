@@ -251,14 +251,17 @@ TOOLS_DEF = [
 @mcp.list_tools()
 async def list_tools() -> list[Tool]:
     """返回工具列表（兼容 MCP 协议）"""
-    return [
-        Tool(
-            name=t["name"],
-            description=t["description"],
-            inputSchema=t["inputSchema"]
-        )
-        for t in TOOLS_DEF
-    ]
+    tools = []
+    for t in TOOLS_DEF:
+        # 手动构建 tool dict，包含 title
+        tool_dict = {
+            "name": t["name"],
+            "description": t["description"],
+            "inputSchema": t["inputSchema"],
+            "title": t.get("title", t["name"]),
+        }
+        tools.append(Tool(**tool_dict))
+    return tools
 
 
 @mcp.call_tool()
