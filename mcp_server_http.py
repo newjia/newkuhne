@@ -522,7 +522,9 @@ async def root_post(request: Request):
                 "result": {
                     "protocolVersion": "2024-11-05",
                     "serverInfo": {"name": "sqlite-orders-mcp", "version": "1.0.0"},
-                    "capabilities": {"tools": {}}
+                    "capabilities": {
+                        "tools": {"listChanged": True}
+                    }
                 }
             }
         
@@ -554,6 +556,29 @@ async def root_post(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/tools/{tool_name}")
+async def call_tool_rest(tool_name: str, request: Request):
+    """REST API 端点：供 Copilot Studio 通过 OpenAPI 调用工具"""
+    try:
+        body = await request.json()
+        print(f"REST tool call: {tool_name} with args: {body}", flush=True)
+
+        # 调用 MCP 工具处理函数
+        result = await call_tool(tool_name, body)
+
+        # 返回结果（提取文本内容）
+        return {
+            "success": True,
+            "result": [r.text for r in result]
+        }
+    except Exception as e:
+        print(f"Error in REST tool call: {e}", flush=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 @app.get("/openapi.json")
