@@ -254,7 +254,7 @@ TOOLS_DEF = [
     {
         "name": "generate_customer_chart",
         "title": "Generate Customer Order Chart",
-        "description": "Generate a visual chart (bar/pie/line) showing order statistics by customer. Returns a chart image URL that can be viewed in a browser. Use this when user asks for 'visualize', 'show chart', 'graph', or wants to see data visually.",
+        "description": "IMPORTANT: Use this tool when user explicitly asks for 'chart', 'graph', 'visualize', 'visual representation', or 'show me a chart/graph'. Generate a visual chart (bar/pie/line) showing order statistics by customer. Returns a chart image URL that can be viewed in a browser. DO NOT use this for simple data queries - only when visualization is explicitly requested.",
         "inputSchema": {
             "type": "object",
             "properties": {
