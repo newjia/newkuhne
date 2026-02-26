@@ -602,14 +602,25 @@ async def generate_customer_chart(args):
             return [TextContent(type="text", text=f"Failed to parse mcp-echarts response: {str(e)}. Output: {result.stdout[:200]}")]
 
         if "result" in response and "content" in response["result"]:
-            base64_data = response["result"]["content"][0]["text"]
-            # 移除 data:image/png;base64, 前缀
-            if "base64," in base64_data:
-                base64_data = base64_data.split("base64,")[1]
+            content = response["result"]["content"][0]
+
+            # mcp-echarts 返回格式：{"type":"image","data":"base64..."}
+            if content.get("type") == "image" and "data" in content:
+                base64_data = content["data"]
+            # 或者旧格式：{"type":"text","text":"data:image/png;base64,..."}
+            elif content.get("type") == "text" and "text" in content:
+                base64_data = content["text"]
+                if "base64," in base64_data:
+                    base64_data = base64_data.split("base64,")[1]
+            else:
+                return [TextContent(type="text", text=f"Unexpected content format: {json.dumps(content)[:200]}")]
 
             # 保存图片
             import base64
-            chart_file.write_bytes(base64.b64decode(base64_data))
+            try:
+                chart_file.write_bytes(base64.b64decode(base64_data))
+            except Exception as e:
+                return [TextContent(type="text", text=f"Failed to decode base64 image: {str(e)}")]
 
             # 返回图表 URL
             chart_url = f"https://newkuhne-dockversion.onrender.com/charts/{chart_id}.png"
