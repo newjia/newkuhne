@@ -19,3 +19,12 @@ INFO:     127.0.0.1:65198 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:50403 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:51223 - "GET / HTTP/1.1" 200 OK
 INFO:     127.0.0.1:51306 - "GET /sse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53303 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56279 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56281 - "GET /openapi.yaml HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56327 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56329 - "GET /openapi.yaml HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [81449]

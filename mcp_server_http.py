@@ -140,104 +140,124 @@ mcp = Server("sqlite-orders-mcp")
 sse = SseServerTransport("/messages")
 
 
+# 工具定义（带 title 用于 Copilot Studio）
+TOOLS_DEF = [
+    {
+        "name": "get_order_summary",
+        "title": "Get Order Summary",
+        "description": "获取订单汇总（总数/总和/平均/最大/最小）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "aggregate": {"type": "string", "enum": ["sum", "avg", "count", "min", "max"]},
+                "field": {"type": "string"},
+                "condition": {"type": "string"}
+            },
+            "required": ["aggregate", "field"]
+        }
+    },
+    {
+        "name": "get_orders_by_customer",
+        "title": "Get Orders by Customer",
+        "description": "按客户分组统计订单",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "group_by": {"type": "string", "enum": ["customer_id", "region_id"]},
+                "order": {"type": "string", "enum": ["ASC", "DESC"], "default": "DESC"},
+                "limit": {"type": "integer", "default": 10}
+            },
+            "required": ["group_by"]
+        }
+    },
+    {
+        "name": "get_orders_by_date_range",
+        "title": "Get Orders by Date Range",
+        "description": "按日期范围查询订单",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "start_date": {"type": "string"},
+                "end_date": {"type": "string"},
+                "status": {"type": "string"}
+            },
+            "required": ["start_date", "end_date"]
+        }
+    },
+    {
+        "name": "list_orders",
+        "title": "List Orders",
+        "description": "列出订单列表",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"},
+                "customer_id": {"type": "string"},
+                "limit": {"type": "integer", "default": 20},
+                "offset": {"type": "integer", "default": 0}
+            }
+        }
+    },
+    {
+        "name": "get_order_detail",
+        "title": "Get Order Detail",
+        "description": "查询单个订单详情",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "order_id": {"type": "string"}
+            },
+            "required": ["order_id"]
+        }
+    },
+    {
+        "name": "update_order_status",
+        "title": "Update Order Status",
+        "description": "更新订单状态",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "order_id": {"type": "string"},
+                "new_status": {"type": "string"}
+            },
+            "required": ["order_id", "new_status"]
+        }
+    },
+    {
+        "name": "get_customers",
+        "title": "Get Customers",
+        "description": "获取客户列表",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "region_id": {"type": "string"}
+            }
+        }
+    },
+    {
+        "name": "get_products",
+        "title": "Get Products",
+        "description": "获取产品列表",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string"}
+            }
+        }
+    },
+]
+
+
 @mcp.list_tools()
 async def list_tools() -> list[Tool]:
+    """返回工具列表（兼容 MCP 协议）"""
     return [
         Tool(
-            name="get_order_summary",
-            description="获取订单汇总（总数/总和/平均/最大/最小）",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "aggregate": {"type": "string", "enum": ["sum", "avg", "count", "min", "max"]},
-                    "field": {"type": "string"},
-                    "condition": {"type": "string"}
-                },
-                "required": ["aggregate", "field"]
-            }
-        ),
-        Tool(
-            name="get_orders_by_customer",
-            description="按客户分组统计订单",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "group_by": {"type": "string", "enum": ["customer_id", "region_id"]},
-                    "order": {"type": "string", "enum": ["ASC", "DESC"], "default": "DESC"},
-                    "limit": {"type": "integer", "default": 10}
-                },
-                "required": ["group_by"]
-            }
-        ),
-        Tool(
-            name="get_orders_by_date_range",
-            description="按日期范围查询订单",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "start_date": {"type": "string"},
-                    "end_date": {"type": "string"},
-                    "status": {"type": "string"}
-                },
-                "required": ["start_date", "end_date"]
-            }
-        ),
-        Tool(
-            name="list_orders",
-            description="列出订单列表",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "status": {"type": "string"},
-                    "customer_id": {"type": "string"},
-                    "limit": {"type": "integer", "default": 20},
-                    "offset": {"type": "integer", "default": 0}
-                }
-            }
-        ),
-        Tool(
-            name="get_order_detail",
-            description="查询单个订单详情",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "order_id": {"type": "string"}
-                },
-                "required": ["order_id"]
-            }
-        ),
-        Tool(
-            name="update_order_status",
-            description="更新订单状态",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "order_id": {"type": "string"},
-                    "new_status": {"type": "string"}
-                },
-                "required": ["order_id", "new_status"]
-            }
-        ),
-        Tool(
-            name="get_customers",
-            description="获取客户列表",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "region_id": {"type": "string"}
-                }
-            }
-        ),
-        Tool(
-            name="get_products",
-            description="获取产品列表",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "category": {"type": "string"}
-                }
-            }
-        ),
+            name=t["name"],
+            description=t["description"],
+            inputSchema=t["inputSchema"]
+        )
+        for t in TOOLS_DEF
     ]
 
 
@@ -451,7 +471,8 @@ async def get_products(args):
 
 
 # ============ FastAPI App ============
-app = FastAPI()
+# 禁用默认的 OpenAPI，使用自定义的
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.on_event("startup")
@@ -530,6 +551,124 @@ async def root_post(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/openapi.json")
+async def openapi_json():
+    """OpenAPI JSON 规范（供 Copilot Studio 发现工具）"""
+    return {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "Sales Order MCP Server",
+            "description": "SQLite-based sales order management API",
+            "version": "1.0.0"
+        },
+        "servers": [
+            {"url": f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME', 'newkuhne.onrender.com')}"}
+        ],
+        "paths": {
+            f"/tools/{t['name']}": {
+                "post": {
+                    "summary": t["title"],
+                    "description": t["description"],
+                    "operationId": t["name"],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": t["inputSchema"]
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Successful response",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"type": "object"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for t in TOOLS_DEF
+        }
+    }
+
+
+def dict_to_yaml(d, indent=0):
+    """简单地将 dict 转为 YAML 字符串"""
+    lines = []
+    prefix = "  " * indent
+    
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                lines.append(f"{prefix}{k}:")
+                lines.append(dict_to_yaml(v, indent + 1))
+            elif isinstance(v, list):
+                lines.append(f"{prefix}{k}:")
+                for item in v:
+                    if isinstance(item, dict):
+                        lines.append(f"{prefix}- {list(item.keys())[0]}: {list(item.values())[0]}" if len(item) == 1 else f"{prefix}-")
+                        if len(item) > 1:
+                            for sub_k, sub_v in list(item.items())[1:]:
+                                lines.append(f"{prefix}  {sub_k}: {sub_v}")
+                    else:
+                        lines.append(f"{prefix}- {item}")
+            else:
+                lines.append(f"{prefix}{k}: {v}")
+    return "\n".join(lines)
+
+
+@app.get("/openapi.yaml")
+async def openapi_yaml():
+    """OpenAPI YAML 规范（供 Copilot Studio 发现工具）"""
+    host = os.getenv('RENDER_EXTERNAL_HOSTNAME', 'newkuhne.onrender.com')
+    
+    yaml_lines = [
+        "openapi: 3.0.0",
+        "info:",
+        "  title: Sales Order MCP Server",
+        "  description: SQLite-based sales order management API",
+        "  version: 1.0.0",
+        "servers:",
+        f"  - url: https://{host}",
+        "paths:"
+    ]
+    
+    for t in TOOLS_DEF:
+        yaml_lines.append(f"  /tools/{t['name']}:")
+        yaml_lines.append(f"    post:")
+        yaml_lines.append(f"      summary: {t['title']}")
+        yaml_lines.append(f"      description: {t['description']}")
+        yaml_lines.append(f"      operationId: {t['name']}")
+        yaml_lines.append(f"      requestBody:")
+        yaml_lines.append(f"        required: true")
+        yaml_lines.append(f"        content:")
+        yaml_lines.append(f"          application/json:")
+        yaml_lines.append(f"            schema:")
+        yaml_lines.append(f"              type: object")
+        if "properties" in t.get("inputSchema", {}):
+            yaml_lines.append(f"              properties:")
+            for prop_name, prop_schema in t["inputSchema"]["properties"].items():
+                yaml_lines.append(f"                {prop_name}:")
+                for k, v in prop_schema.items():
+                    if isinstance(v, list):
+                        yaml_lines.append(f"                  {k}:")
+                        for item in v:
+                            yaml_lines.append(f"                    - {item}")
+                    else:
+                        yaml_lines.append(f"                  {k}: {v}")
+        yaml_lines.append(f"      responses:")
+        yaml_lines.append(f"        '200':")
+        yaml_lines.append(f"          description: Successful response")
+    
+    return Response(
+        content="\n".join(yaml_lines),
+        media_type="application/yaml"
+    )
 
 
 if __name__ == "__main__":
