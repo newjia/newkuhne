@@ -145,13 +145,13 @@ TOOLS_DEF = [
     {
         "name": "get_order_summary",
         "title": "Get Order Summary",
-        "description": "获取订单汇总（总数/总和/平均/最大/最小）",
+        "description": "Calculate aggregate statistics on orders: total amount, average amount, order count, min or max value. Use this for questions like 'total sales this month', 'average order value', 'how many orders'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "aggregate": {"type": "string", "enum": ["sum", "avg", "count", "min", "max"]},
-                "field": {"type": "string"},
-                "condition": {"type": "string"}
+                "aggregate": {"type": "string", "enum": ["sum", "avg", "count", "min", "max"], "description": "Aggregation function to apply"},
+                "field": {"type": "string", "description": "Field to aggregate: 'total_amount' or 'quantity'"},
+                "condition": {"type": "string", "description": "Optional SQL WHERE clause, e.g. \"status='已完成'\" or \"order_date >= '2026-01-01'\""}
             },
             "required": ["aggregate", "field"]
         }
@@ -159,11 +159,11 @@ TOOLS_DEF = [
     {
         "name": "get_orders_by_customer",
         "title": "Get Orders by Customer",
-        "description": "按客户分组统计订单",
+        "description": "Group orders by customer or region and return totals, averages, and counts. Use this for 'top 10 customers by sales', 'orders per region', 'which customer has the most orders'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "group_by": {"type": "string", "enum": ["customer_id", "region_id"]},
+                "group_by": {"type": "string", "enum": ["customer_id", "region_id"], "description": "Group by customer or region"},
                 "order": {"type": "string", "enum": ["ASC", "DESC"], "default": "DESC"},
                 "limit": {"type": "integer", "default": 10}
             },
@@ -173,13 +173,13 @@ TOOLS_DEF = [
     {
         "name": "get_orders_by_date_range",
         "title": "Get Orders by Date Range",
-        "description": "按日期范围查询订单",
+        "description": "Retrieve orders within a specific date range, optionally filtered by status. Use this for 'orders in February', 'orders between Jan 1 and Feb 15', 'completed orders last month'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "start_date": {"type": "string"},
-                "end_date": {"type": "string"},
-                "status": {"type": "string"}
+                "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format"},
+                "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format"},
+                "status": {"type": "string", "description": "Optional order status filter"}
             },
             "required": ["start_date", "end_date"]
         }
@@ -187,12 +187,12 @@ TOOLS_DEF = [
     {
         "name": "list_orders",
         "title": "List Orders",
-        "description": "列出订单列表",
+        "description": "List orders with optional filters by status or customer. Use this for 'show latest orders', 'show all shipped orders', 'show orders from a specific customer', 'show me the latest 5 orders'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "status": {"type": "string"},
-                "customer_id": {"type": "string"},
+                "status": {"type": "string", "description": "Filter by status: 待付款, 已付款, 已发货, 已完成, 已取消"},
+                "customer_id": {"type": "string", "description": "Filter by customer ID"},
                 "limit": {"type": "integer", "default": 20},
                 "offset": {"type": "integer", "default": 0}
             }
@@ -201,11 +201,11 @@ TOOLS_DEF = [
     {
         "name": "get_order_detail",
         "title": "Get Order Detail",
-        "description": "查询单个订单详情",
+        "description": "Get full details of a single order by order ID, including customer info, product, quantity, amount, and status. Use this for 'show order OR20250001', 'details for order X'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "order_id": {"type": "string"}
+                "order_id": {"type": "string", "description": "The order ID, e.g. OR20250001"}
             },
             "required": ["order_id"]
         }
@@ -213,12 +213,12 @@ TOOLS_DEF = [
     {
         "name": "update_order_status",
         "title": "Update Order Status",
-        "description": "更新订单状态",
+        "description": "Update the status of an existing order. Valid statuses: 待付款 (pending payment), 已付款 (paid), 已发货 (shipped), 已完成 (completed), 已取消 (cancelled). Use this for 'change order X to shipped', 'mark order as completed'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "order_id": {"type": "string"},
-                "new_status": {"type": "string"}
+                "order_id": {"type": "string", "description": "The order ID to update"},
+                "new_status": {"type": "string", "description": "New status: 待付款, 已付款, 已发货, 已完成, or 已取消"}
             },
             "required": ["order_id", "new_status"]
         }
@@ -226,22 +226,22 @@ TOOLS_DEF = [
     {
         "name": "get_customers",
         "title": "Get Customers",
-        "description": "获取客户列表",
+        "description": "Retrieve the list of customers, optionally filtered by region. Use this for 'show all customers', 'customers in East China region', 'list customers'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "region_id": {"type": "string"}
+                "region_id": {"type": "string", "description": "Optional region ID to filter customers, e.g. R001"}
             }
         }
     },
     {
         "name": "get_products",
         "title": "Get Products",
-        "description": "获取产品列表",
+        "description": "Retrieve the list of products, optionally filtered by category. Use this for 'show all products', 'list hardware products', 'what products do we have'.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "category": {"type": "string"}
+                "category": {"type": "string", "description": "Optional category filter: 硬件 (hardware), 软件 (software), 服务 (service)"}
             }
         }
     },
