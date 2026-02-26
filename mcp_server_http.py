@@ -537,41 +537,70 @@ async def generate_customer_chart(args):
         chart_id = str(uuid.uuid4())
         chart_file = CHARTS_DIR / f"{chart_id}.png"
 
-        # 构建 mcp-echarts 输入
-        echarts_input = {
-            "title": f"Top {limit} Customers by Order Amount",
-            "axisXTitle": "Customer",
-            "axisYTitle": "Total Amount",
-            "data": chart_data,
-            "width": 800,
-            "height": 600,
-            "theme": "default",
-            "outputType": "png"
+        # 构建 mcp-echarts 输入（使用临时文件）
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            echarts_input = {
+                "title": f"Top {limit} Customers by Order Amount",
+                "axisXTitle": "Customer",
+                "axisYTitle": "Total Amount",
+                "data": chart_data,
+                "width": 800,
+                "height": 600,
+                "theme": "default",
+                "outputType": "png"
+            }
+            json.dump(echarts_input, f)
+            input_file = f.name
+
+        # 调用 mcp-echarts（使用 stdio 模式）
+        tool_name = f"generate_{chart_type}_chart"
+
+        # 创建 MCP 请求
+        mcp_request = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": echarts_input
+            }
         }
 
-        # 调用 mcp-echarts（使用 npx）
-        tool_name = f"generate_{chart_type}_chart"
+        print(f"📊 Calling mcp-echarts: {tool_name}", flush=True)
+        print(f"📊 Input data: {chart_data[:3]}...", flush=True)
+
         result = subprocess.run(
             ["npx", "-y", "mcp-echarts"],
-            input=json.dumps({
-                "jsonrpc": "2.0",
-                "id": "1",
-                "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": echarts_input
-                }
-            }),
+            input=json.dumps(mcp_request) + "\n",
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            env={**os.environ, "NODE_ENV": "production"}
         )
 
+        print(f"📊 Return code: {result.returncode}", flush=True)
+        print(f"📊 Stdout length: {len(result.stdout)}", flush=True)
+        print(f"📊 Stderr: {result.stderr[:200] if result.stderr else 'None'}", flush=True)
+
+        # 清理临时文件
+        try:
+            os.unlink(input_file)
+        except:
+            pass
+
         if result.returncode != 0:
-            return [TextContent(type="text", text=f"Chart generation failed: {result.stderr}")]
+            return [TextContent(type="text", text=f"Chart generation failed (exit code {result.returncode}): {result.stderr[:500]}")]
+
+        if not result.stdout.strip():
+            return [TextContent(type="text", text=f"Chart generation failed: mcp-echarts returned empty output. Stderr: {result.stderr[:500]}")]
 
         # 解析返回的 base64 图片
-        response = json.loads(result.stdout)
+        try:
+            response = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            return [TextContent(type="text", text=f"Failed to parse mcp-echarts response: {str(e)}. Output: {result.stdout[:200]}")]
+
         if "result" in response and "content" in response["result"]:
             base64_data = response["result"]["content"][0]["text"]
             # 移除 data:image/png;base64, 前缀
@@ -583,19 +612,20 @@ async def generate_customer_chart(args):
             chart_file.write_bytes(base64.b64decode(base64_data))
 
             # 返回图表 URL
-            chart_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME', 'localhost:8000')}/charts/{chart_id}.png"
+            chart_url = f"https://newkuhne-dockversion.onrender.com/charts/{chart_id}.png"
             return [TextContent(
                 type="text",
                 text=f"📊 Chart generated successfully!\n\nView chart: {chart_url}\n\nData summary:\n" +
                      "\n".join([f"- {d['category']}: ${d['value']:,.2f}" for d in chart_data[:5]])
             )]
         else:
-            return [TextContent(type="text", text=f"Unexpected response from mcp-echarts: {result.stdout}")]
+            return [TextContent(type="text", text=f"Unexpected response from mcp-echarts: {json.dumps(response)[:500]}")]
 
     except subprocess.TimeoutExpired:
         return [TextContent(type="text", text="Chart generation timed out. Please try again.")]
     except Exception as e:
-        return [TextContent(type="text", text=f"Chart generation error: {str(e)}")]
+        import traceback
+        return [TextContent(type="text", text=f"Chart generation error: {str(e)}\n\nTraceback: {traceback.format_exc()[:500]}")]
 
 
 # ============ FastAPI App ============
