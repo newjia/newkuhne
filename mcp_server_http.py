@@ -516,7 +516,8 @@ async def root_post(request: Request):
         
         # 处理 initialize 请求
         if body.get("method") == "initialize":
-            return {
+            print(f"✅ Initialize request from: {body.get('params', {}).get('clientInfo', {})}", flush=True)
+            response = {
                 "jsonrpc": "2.0",
                 "id": body.get("id"),
                 "result": {
@@ -527,15 +528,20 @@ async def root_post(request: Request):
                     }
                 }
             }
+            print(f"📤 Initialize response: {response}", flush=True)
+            return response
         
         # 处理 tools/list 请求
         if body.get("method") == "tools/list":
+            print("📋 Received tools/list request", flush=True)
             tools = await list_tools()
-            return {
+            response = {
                 "jsonrpc": "2.0",
                 "id": body.get("id"),
-                "result": {"tools": [tool.dict() for tool in tools]}
+                "result": {"tools": [tool.model_dump() for tool in tools]}
             }
+            print(f"📤 Returning {len(tools)} tools", flush=True)
+            return response
         
         # 处理 tools/call 请求
         if body.get("method") == "tools/call":
@@ -544,9 +550,14 @@ async def root_post(request: Request):
             return {
                 "jsonrpc": "2.0",
                 "id": body.get("id"),
-                "result": {"content": [r.dict() for r in result]}
+                "result": {"content": [r.model_dump() for r in result]}
             }
-        
+
+        # 处理 notifications/initialized（关键：必须返回空的 JSON-RPC 响应）
+        if body.get("method") == "notifications/initialized":
+            print("✅ Received notifications/initialized", flush=True)
+            return {"jsonrpc": "2.0"}
+
         return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32601, "message": "Method not found"}}
     except Exception as e:
         print(f"Error: {e}", flush=True)
